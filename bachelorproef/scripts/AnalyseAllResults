@@ -1,0 +1,64 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import re
+
+
+plt.figure(figsize=(10,6))
+# Read in both CSV files as dataframes
+df1 = pd.read_csv('deepface_results_all_white_women.csv', converters={'Result': lambda x: x})
+df2 = pd.read_csv('deepface_results_all_white_men.csv', converters={'Result': lambda x: x})
+df3 = pd.read_csv('deepface_results_all_black_men.csv', converters={'Result': lambda x: x})
+df4 = pd.read_csv('deepface_results_all_black_women.csv', converters={'Result': lambda x: x})
+
+def extract_verified(result):
+    # Extract the verified value from the result string
+    match = re.search(r"'verified': ([\w]+)", result)
+    if match:
+        return match.group(1)
+    return None
+
+# Extract the necessary data from the Result column
+df1['Verified'] = df1['Result'].apply(extract_verified)
+df2['Verified'] = df2['Result'].apply(extract_verified)
+df3['Verified'] = df3['Result'].apply(extract_verified)
+df4['Verified'] = df4['Result'].apply(extract_verified)
+
+
+# Calculate the verification counts per model in both dataframes
+verification_counts1 = df1[df1['Verified'] == 'False'].groupby(['Model']).size().reset_index(name='White Female')
+verification_counts2 = df2[df2['Verified'] == 'False'].groupby(['Model']).size().reset_index(name='White Male')
+verification_counts3 = df3[df3['Verified'] == 'False'].groupby(['Model']).size().reset_index(name='Black Female')
+verification_counts4 = df4[df4['Verified'] == 'False'].groupby(['Model']).size().reset_index(name='Black Male')
+
+# Combine the verification counts into a single DataFrame
+verification_counts5 = pd.merge(verification_counts1, verification_counts2, on='Model')
+verification_counts6 = pd.merge(verification_counts5, verification_counts3, on='Model')
+verification_counts = pd.merge(verification_counts6, verification_counts4, on='Model')
+
+# Create array of x-axis positions with spacing of 0.2 between each group of bars
+models = list(set(df1['Model']) | set(df2['Model']) | set(df3['Model']) | set(df4['Model']))
+
+x_axis = np.arange(len(models))*4
+
+
+tick_locations = [value + 0.125 for value in x_axis]
+plt.figure(figsize=(10,6))
+plt.xticks(x_axis + 0.3, verification_counts['Model'], rotation=90)
+
+plt.ylim(0, max(verification_counts['White Female'].max(), verification_counts['White Male'].max(), verification_counts['Black Female'].max() ,verification_counts['Black Male'].max() ) + 15)
+
+plt.bar(x_axis + 1, verification_counts['White Female'], color = '#f9cbbe', width=0.55, label='White Female', align='center')
+plt.bar(x_axis + 2, verification_counts['White Male'], color = '#ef8667', width=0.55, label='White Male', align='center')
+plt.bar(x_axis + 3 , verification_counts['Black Female'], color = '#bf6b52', width=0.55, label='Black Female', align='center')
+plt.bar(x_axis + 4, verification_counts['Black Male'], color = '#8f503d', width=0.55, label='Black Male', align='center')
+
+plt.legend()
+
+plt.grid(True, which='major', axis='x', linewidth=1, linestyle='-', color='lightgrey')
+
+
+plt.title('Number of times each model incorrectly verified the images')
+plt.xlabel('Model')
+plt.ylabel('Number of verifications')
+plt.show()

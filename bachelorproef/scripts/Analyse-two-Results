@@ -1,0 +1,51 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Read in both CSV files as dataframes
+df1 = pd.read_csv('deepface_results_all_white_men.csv', converters={'Result': lambda x: x})
+df2 = pd.read_csv('deepface_results_all_black_women.csv', converters={'Result': lambda x: x})
+
+
+def extract_verified(result):
+    # Extract the verified value from the result string
+    match = re.search(r"'verified': ([\w]+)", result)
+    if match:
+        return match.group(1)
+    return None
+
+# Extract the necessary data from the Result column
+df1['Verified'] = df1['Result'].apply(extract_verified)
+df2['Verified'] = df2['Result'].apply(extract_verified)
+
+# Calculate the verification counts per model in both dataframes
+verification_counts1 = df1[df1['Verified'] == 'False']['Model'].value_counts()
+verification_counts2 = df2[df2['Verified'] == 'False']['Model'].value_counts()
+
+# Combine the verification counts into a single DataFrame
+verification_counts = pd.concat([verification_counts1, verification_counts2], axis=1, sort=True)
+verification_counts.columns = ['White men', 'Black women']
+
+
+models = list(set(df1['Model']) | set(df2['Model']))
+
+x_axis = np.arange(len(models))
+tick_locations = [value + 0.125 for value in x_axis]
+plt.figure(figsize=(10,6))
+plt.xticks(tick_locations, models)
+
+plt.ylim(0, max(verification_counts1.max(), verification_counts2.max()) + 15)
+
+plt.bar(x_axis + 0.00, verification_counts1, color = '#f9cbbe', width=0.25, label='White men')
+plt.bar(x_axis + 0.25, verification_counts2, color = '#ef8667', width=0.25, label='Black women')
+plt.legend()
+for i, v in enumerate(verification_counts1):
+    plt.text(i - 0.130, v + 1.95, str(v), fontweight='bold')
+for i, v in enumerate(verification_counts2):
+    plt.text(i + 0.130, v + 1.95, str(v),  fontweight='bold')
+
+plt.title('Number of times each model incorrectly verified the images')
+plt.xlabel('Model')
+plt.ylabel('Number of verifications')
+plt.show()
+
